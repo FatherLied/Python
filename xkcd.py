@@ -66,6 +66,9 @@ class GlobalResource(threading.Thread):
 	def die(cls):
 		cls.running = False
 
+	def __init__(self):
+		Thread.__init__(self)
+
 
 class Crawler(threading.Thread):
 	# # Global Killswitch
@@ -78,6 +81,8 @@ class Crawler(threading.Thread):
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	def __init__(self, urlCache):
+		super().__init__(self)
+		
 		self.workLoad = []
 		self.urlCache = urlCache
 
@@ -114,6 +119,8 @@ class Parser(threading.Thread):
 	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 	def __init__(self):
+		super().__init__(self)
+		
 		self.workLoad = []
 
 		pass
