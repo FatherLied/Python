@@ -33,7 +33,7 @@ except Exception as e:
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# # Get image from home
+# Get image from home
 # # r = requests.get('https://xkcd.com/')
 # r = requests.get('https://c.xkcd.com/random/comic/')
 # soup = BeautifulSoup(r.text, 'html.parser')
@@ -130,25 +130,60 @@ class OrderedSetQueue(Queue):
 
         self.itemLimit = itemLimit
         self.itemCount = 0
+        self.processed = 0
+        self.completed = 0
 
     def _init(self, maxsize):
         self.queue = OrderedSet()
 
     def _put(self, item):
-        if self.itemCount >= self.itemLimit:
-            print "False"
+        if self.isFull():
             return False
 
         if self.queue.add(item):
             self.itemCount += 1
-            print "True"
             return True
         else:
-            print "False"
             return False
+
+    def take(self):
+
+        if not self.isEmpty():
+            return self.get()
+        else:
+            return None
+
     def _get(self):
-        # self.itemCount += 1
+        self.processed += 1
         return self.queue.pop()
+
+    def scrape_done(self):
+        self.completed += 1
+
+    def isFull(self):
+        if self.itemCount >= self.itemLimit:
+            return True
+        else:
+            return False
+
+    def isEmpty(self):
+        if self.processed >= self.itemCount:
+            return True
+        else:
+            return False
+
+    def isMaxed(self):
+        if self.processed >= self.itemLimit:
+            return True
+        else:
+            return False
+
+    def isComplete(self):
+        if self.completed >= self.itemLimit:
+            return True
+        else:
+            return False
+
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -156,10 +191,17 @@ class OrderedSetQueue(Queue):
 class GlobalResource(threading.Thread):
     # Global Killswitch
     running = True
+    idNo = 1
 
     @classmethod
     def die(cls):
         cls.running = False
+
+    @classmethod
+    def incrementID(cls):
+        cls.idNo += 1
+
+
 
     def __init__(self):
         threading.Thread.__init__(self)
@@ -169,30 +211,39 @@ class Crawler(GlobalResource):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def __init__(self, urlCache):
+    def __init__(self, urlCache, isDeath):
         GlobalResource.__init__(self)
         
         self.workLoad = []
         self.urlCache = urlCache
+        if not isDeath:
+            self.name = "Crawler-{}".format(self.idNo)
+            self.incrementID()
+        else:
+            self.name = "Crawler-X"
+
+        self.isDeath = isDeath
 
         pass
 
     def run(self):
         while self.running:
-            r = requests.get('https://c.xkcd.com/random/comic/')
-            soup = BeautifulSoup(r.text, 'html.parser')
-            selector = '#comic img'
-            img = soup.select(selector)[0]
+            if not self.isDeath:
+                if not self.urlCache.isFull():
+                    r = requests.get('https://c.xkcd.com/random/comic/')
+                    time.sleep(1)
 
-            image_url = 'https:' + img.attrs['src']
+                    image_url = r.url
+                    logging.info("Crawler Found: {}".format(image_url))
 
-            if urlCache.qSize() < 50:
+                    self.urlCache.put(image_url)
 
-                # Do something
-
-                pass
-
-            pass
+                if self.urlCache.isFull():
+                    break
+                logging.info("[{} {} {}]".format(self.urlCache.itemCount,
+                                                 self.urlCache.processed,
+                                                 self.urlCache.completed))
+        logging.warning("PROCESS TERMINATED [CRAWLER]")
 
 class Parser(GlobalResource):
 
@@ -204,77 +255,112 @@ class Parser(GlobalResource):
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def __init__(self):
-        # GlobalResource.__init__(self)
+    def __init__(self, urlCache, isDeath):
+        GlobalResource.__init__(self)
         
-        self.workLoad = []
+        self.urlCache = urlCache
+        if not isDeath:
+            self.name = "Parser-{}".format(self.idNo)
+            self.incrementID()
+        else:
+            self.name = "Parser-X"
+
+        self.isDeath = isDeath
 
         pass
 
     def run(self):
         while self.running:
-            pass
+            if not self.isDeath:
+                if self.urlCache.isComplete():
+                    break
 
-# Test Thread
-class SetChecker(GlobalResource):
+                image_url = self.urlCache.take()
 
-    def __init__(self, setQueue, setInput):
-        GlobalResource.__init__(self)
-        
-        self.setQueue = setQueue
-        self.setInput = setInput
-        
+                if image_url is not None:
+                    logging.info("Parser Got: {}".format(image_url))
 
-    def run(self):
-        i = 0
+                    r = requests.get(image_url)
+                    soup = BeautifulSoup(r.content, 'html.parser')
+                    selector = '#comic img'
+                    img = soup.select(selector)[0]
 
-        while self.running:
-            if i < len(self.setInput):
-                self.setQueue.put(self.setInput[i])
-                i += 1
 
-            pass
+                    # Get image from image url
+                    image_url = 'https:' + img.attrs['src']
+                    r = requests.get(image_url)
+                    filename = img.attrs['src'].split('/')[-1]
+                    i = Image.open(StringIO(r.content))
+                    i.save("{}/{}".format(folderPath, filename))
+
+                    self.urlCache.scrape_done()
+
+                    logging.info("[{} {} {}]".format(self.urlCache.itemCount,
+                                                     self.urlCache.processed,
+                                                     self.urlCache.completed))
+
+        logging.warning("PROCESS TERMINATED [PARSER]")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
 def main():
-
     size = 50
-    urlQueue = OrderedSetQueue(0,9)
+    threadLimit = 10
+    urlCache = OrderedSetQueue(0, size)
 
-    a = SetChecker(urlQueue, ["a", "b", "c"])
-    b = SetChecker(urlQueue, ["1", "2", "3", "4"])
-    c = SetChecker(urlQueue, ["d", "d", "e", "f"])
+    activeThreads = []
 
-    a.start()
-    b.start()
-    c.start()
+    def glean(threads):
+        for thread in threads:
+            if not thread.isAlive():
+                threads.remove(thread)
 
-    time.sleep(1)
-    a.die()
+    for i in range(0, threadLimit/2):
+        crawlerTail = Crawler(urlCache, False)
+        activeThreads.append(crawlerTail)
 
-    a.join()
-    b.join()
-    c.join()
+        crawlerTail.start()
 
-    print urlQueue.qsize()
+    for i in range(0, threadLimit/2):
+        parserTail = Parser(urlCache, False)
+        activeThreads.append(parserTail)
 
-    print "\n"
+        parserTail.start()
 
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
-    print urlQueue.get()
+    while True:
+        if urlCache.isComplete():
+            break
 
-    # urlQueue.put("b")
+        glean(activeThreads)
 
-    pass
+        if len(activeThreads) < threadLimit:
+            if not urlCache.isFull():
+                crawlerTail = Crawler(urlCache, False)
+                activeThreads.append(crawlerTail)
+
+                crawlerTail.start()
+            else:
+                parserTail = Parser(urlCache, False)
+                activeThreads.append(parserTail)
+
+                parserTail.start()
+
+        time.sleep(1)
+        logging.info(threading.enumerate())
+
+        logging.info("Still alive")
+
+    crawlerTail = Crawler(urlCache, True)
+    logging.info(threading.enumerate())
+    crawlerTail.die()
+
+    parserTail = Parser(urlCache, True)
+    logging.info(threading.enumerate())
+    parserTail.die()
+
+    glean(activeThreads)
 
 ######
 

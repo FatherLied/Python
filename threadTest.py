@@ -37,7 +37,7 @@ def main():
 
 	logging.info(threading.enumerate())
 
-	time.sleep(5)
+	time.sleep(3)
 
 	head.die()
 
