@@ -18,6 +18,16 @@
 #<list>.extend(list)  ==  adds each item of the target list to the source list
 
 """
+~~ Advanced ~~
+
+##	Clear console window
+import os
+os.system('cls' if os.name == 'nt' else 'clear')
+
+
+"""
+
+"""
 Imports:
 
 import random
