@@ -13,3 +13,28 @@
 #open("File.in")	==	opens a file
 #<file>.read(<size>)	==	reads the whole file (if <size> is not filled in)
 #<file>.readline()	==	reads a line of the file
+
+#<list>.append(item)  ==  adds item to the end of the list
+#<list>.extend(list)  ==  adds each item of the target list to the source list
+
+"""
+Imports:
+
+import random
+{
+	### Library for generating pseudo-random numbers
+
+	# Important Functions:
+
+	random.random():
+		Return the next random floating point number in the range [0.0, 1.0).
+
+	random.randint(a, b):
+		Return a random integer N such that a <= N <= b.
+
+	random.choice(seq)
+		Return a random element from the non-empty sequence seq. If seq is empty, raises IndexError.
+}
+
+
+"""
