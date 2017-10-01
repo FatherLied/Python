@@ -24,6 +24,8 @@
 import os
 os.system('cls' if os.name == 'nt' else 'clear')
 
+##  Parse all lone numbers in a string (separated by non-characters) into a list
+[int(s) for s in str.split() if s.isdigit()]
 
 """
 
@@ -44,6 +46,25 @@ import random
 
 	random.choice(seq)
 		Return a random element from the non-empty sequence seq. If seq is empty, raises IndexError.
+}
+
+import operator
+{
+	### Library for standard operators as functions
+
+	# Important Functions:
+
+	operator.attrgetter(attr):
+		Return a callable object that fetches attr from its operand.
+
+	operator.attrgetter(*attrs):
+		Returns a tuple of attributes if multiple attributes are requested.
+
+	operator.itemgetter(item):
+		Return a callable object that fetches item from its operand using the operand’s __getitem__() method.
+
+	operator.itemgetter(*items):
+		Returns a tuple of lookup values if multiple items are specified.
 }
 
 
