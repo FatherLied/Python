@@ -14,4 +14,17 @@ class Tup:
 	def add_value(self, num):
 		return self.value + num
 
-classic = [('a', 6), ('b', 3), ('c', 4), ('b', 3),] 
+classic = [('a', 6), ('b', 3), ('c', 4), ('d', 8), ('e', 1)]
+
+test = []
+
+for item in classic:
+	test.append(Tup(item))
+
+print("Unsorted: {}".format(test))
+
+x = 5
+
+test = sorted(test, key = methodcaller('add_value', x))
+
+print("Sorted: {}".format(test))
