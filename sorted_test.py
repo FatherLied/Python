@@ -11,6 +11,7 @@ class Tup:
 	def __repr__(self):
 		return "{}: {}".format(self.name, self.value)
 
-	def add_value(self, num)
+	def add_value(self, num):
 		return self.value + num
 
+classic = [('a', 6), ('b', 3), ('c', 4), ('b', 3),] 
